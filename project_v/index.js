@@ -2,6 +2,9 @@ window.onload = function() {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
+    // 일시정지 키 설정
+    const pauseKey = 'Escape';
+
     // 뷰포트 크기 설정
     const viewport = {
         width: 600,
@@ -54,11 +57,25 @@ window.onload = function() {
 
     // 적의 위치를 업데이트하는 함수
     function updateEnemies() {
-        enemies.forEach(enemy => {
+        enemies.forEach((enemy, index) => {
             if (player.x < enemy.x) enemy.x -= enemy.speed; // 플레이어를 향해 왼쪽으로 이동
             if (player.x > enemy.x) enemy.x += enemy.speed; // 플레이어를 향해 오른쪽으로 이동
             if (player.y < enemy.y) enemy.y -= enemy.speed; // 플레이어를 향해 위로 이동
             if (player.y > enemy.y) enemy.y += enemy.speed; // 플레이어를 향해 아래로 이동
+
+            // 적 객체끼리의 충돌을 확인하고 충돌 시 속도 차이를 둠
+            enemies.forEach((otherEnemy, otherIndex) => {
+                if (index !== otherIndex &&
+                    enemy.x < otherEnemy.x + otherEnemy.width &&
+                    enemy.x + enemy.width > otherEnemy.x &&
+                    enemy.y < otherEnemy.y + otherEnemy.height &&
+                    enemy.y + enemy.height > otherEnemy.y) {
+                    // 충돌 발생 시 속도 차이를 둠
+                    if (enemy.speed === otherEnemy.speed) {
+                        enemy.speed -= 0.5;
+                    }
+                }
+            });
         });
     }
 
@@ -100,13 +117,55 @@ window.onload = function() {
         enemies.push({ x, y, width: 50, height: 50, speed: 2 });
     }
 
+    let isPaused = false;
+    let enemySpawnInterval;
+
     // 키 입력 상태를 저장하는 객체
     const keys = {};
     window.addEventListener('keydown', (e) => {
         keys[e.key] = true;
+        if (e.key === pauseKey) {
+            togglePause();
+        }
     });
     window.addEventListener('keyup', (e) => {
         keys[e.key] = false;
+    });
+
+    // 일시정지 상태를 토글하는 함수
+    function togglePause() {
+        isPaused = !isPaused;
+        const gameContainer = document.getElementById('gameContainer');
+        const pauseMenu = document.getElementById('pauseMenu');
+        if (isPaused) {
+            clearInterval(enemySpawnInterval); // 적 생성 일시정지
+            gameContainer.classList.add('paused');
+            pauseMenu.classList.remove('hidden');
+        } else {
+            enemySpawnInterval = setInterval(spawnEnemy, 1000); // 적 생성 재개
+            gameContainer.classList.remove('paused');
+            pauseMenu.classList.add('hidden');
+            gameLoop(); // 게임 루프 재개
+        }
+    }
+
+    // 초기화 버튼 클릭 이벤트
+    document.getElementById('resetButton').addEventListener('click', () => {
+        // 게임 상태 초기화
+        player.x = 2500;
+        player.y = 2500;
+        enemies.length = 0;
+        isPaused = false;
+        document.getElementById('gameContainer').classList.remove('paused');
+        document.getElementById('pauseMenu').classList.add('hidden');
+        clearInterval(enemySpawnInterval);
+        enemySpawnInterval = setInterval(spawnEnemy, 1000);
+        gameLoop();
+    });
+
+    // 재개 버튼 클릭 이벤트
+    document.getElementById('resumeButton').addEventListener('click', () => {
+        togglePause();
     });
 
     // 카메라의 위치를 업데이트하는 함수
@@ -117,6 +176,8 @@ window.onload = function() {
 
     // 게임 루프 함수
     function gameLoop() {
+        if (isPaused) return; // 일시정지 상태에서는 업데이트 중지
+
         // 캔버스를 지움
         ctx.clearRect(0, 0, viewport.width, viewport.height);
 
@@ -138,5 +199,5 @@ window.onload = function() {
     gameLoop();
 
     // 매 초마다 적 생성
-    setInterval(spawnEnemy, 1000);
+    enemySpawnInterval = setInterval(spawnEnemy, 1000);
 };

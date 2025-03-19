@@ -37,3 +37,29 @@ html, body {
 .enemy {
     background-color: red;
 }
+
+.hidden {
+    display: none;
+}
+
+#pauseMenu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+#pauseMenu button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#gameContainer.paused #gameCanvas {
+    filter: blur(5px);
+}
