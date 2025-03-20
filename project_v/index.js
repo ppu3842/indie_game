@@ -21,11 +21,16 @@ window.onload = function() {
         y: 2500,
         width: 50,
         height: 50,
-        speed: 5
+        speed: 5,
+        hp: 10, // 플레이어의 hp 속성 추가
+        maxHp: 10
     };
 
     // 적 객체 배열
     const enemies = [];
+
+    // 투사체 배열
+    const projectiles = [];
 
     // 카메라 객체 설정
     const camera = {
@@ -33,10 +38,14 @@ window.onload = function() {
         y: player.y - viewport.height / 2
     };
 
+    // 게임 오버 상태
+    let isGameOver = false;
+
     // 플레이어를 그리는 함수
     function drawPlayer() {
         ctx.fillStyle = 'blue';
         ctx.fillRect(player.x - camera.x, player.y - camera.y, player.width, player.height);
+        drawHealthBar(player);
     }
 
     // 적을 그리는 함수
@@ -44,6 +53,31 @@ window.onload = function() {
         ctx.fillStyle = 'red';
         enemies.forEach(enemy => {
             ctx.fillRect(enemy.x - camera.x, enemy.y - camera.y, enemy.width, enemy.height);
+            drawHealthBar(enemy);
+            ctx.fillStyle = 'red';
+        });
+    }
+
+    // 체력 바를 그리는 함수
+    function drawHealthBar(entity) {
+        const healthBarWidth = entity.width;
+        const healthBarHeight = 10;
+        const healthBarX = entity.x - camera.x;
+        const healthBarY = entity.y - camera.y + entity.height + 5;
+        const healthPercentage = entity.hp / entity.maxHp;
+
+        ctx.fillStyle = 'red';
+        ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+
+        ctx.fillStyle = 'green';
+        ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
+    }
+
+    // 투사체를 그리는 함수
+    function drawProjectiles() {
+        ctx.fillStyle = 'yellow';
+        projectiles.forEach(projectile => {
+            ctx.fillRect(projectile.x - camera.x, projectile.y - camera.y, projectile.width, projectile.height);
         });
     }
 
@@ -63,6 +97,8 @@ window.onload = function() {
             if (player.y < enemy.y) enemy.y -= enemy.speed; // 플레이어를 향해 위로 이동
             if (player.y > enemy.y) enemy.y += enemy.speed; // 플레이어를 향해 아래로 이동
 
+            let collisionDetected = false;
+
             // 적 객체끼리의 충돌을 확인하고 충돌 시 속도 차이를 둠
             enemies.forEach((otherEnemy, otherIndex) => {
                 if (index !== otherIndex &&
@@ -71,11 +107,17 @@ window.onload = function() {
                     enemy.y < otherEnemy.y + otherEnemy.height &&
                     enemy.y + enemy.height > otherEnemy.y) {
                     // 충돌 발생 시 속도 차이를 둠
+                    collisionDetected = true;
                     if (enemy.speed === otherEnemy.speed) {
                         enemy.speed -= 0.5;
                     }
                 }
             });
+
+            // 충돌이 없을 경우 속도를 원래대로 복원
+            if (!collisionDetected) {
+                enemy.speed = 2;
+            }
         });
     }
 
@@ -87,7 +129,15 @@ window.onload = function() {
                 player.y < enemy.y + enemy.height &&
                 player.y + player.height > enemy.y) {
                 // 충돌 감지
-                console.log('충돌!');
+                // console.log('충돌!');
+                // 플레이어의 hp 감소 (최대 1초에 한 번)
+                if (!enemy.lastCollisionTime || Date.now() - enemy.lastCollisionTime > 1000) {
+                    player.hp -= 1;
+                    enemy.lastCollisionTime = Date.now();
+                    if (player.hp <= 0) {
+                        gameOver();
+                    }
+                }
             }
         });
     }
@@ -114,11 +164,63 @@ window.onload = function() {
         }
 
         // 적 객체를 배열에 추가
-        enemies.push({ x, y, width: 50, height: 50, speed: 2 });
+        enemies.push({ x, y, width: 50, height: 50, speed: 2, hp: 4, maxHp: 4 }); // 적의 hp 속성 추가
+    }
+
+    // 투사체를 생성하는 함수
+    function spawnProjectile() {
+        if (enemies.length === 0) return;
+
+        // 가장 가까운 적 찾기
+        let closestEnemy = enemies[0];
+        let minDistance = Math.hypot(player.x - closestEnemy.x, player.y - closestEnemy.y);
+
+        enemies.forEach(enemy => {
+            const distance = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+            if (distance < minDistance) {
+                closestEnemy = enemy;
+                minDistance = distance;
+            }
+        });
+
+        // 투사체 생성
+        const angle = Math.atan2(closestEnemy.y - player.y, closestEnemy.x - player.x);
+        projectiles.push({
+            x: player.x + player.width / 2,
+            y: player.y + player.height / 2,
+            width: 10,
+            height: 10,
+            speed: 10,
+            angle: angle
+        });
+    }
+
+    // 투사체의 위치를 업데이트하는 함수
+    function updateProjectiles() {
+        projectiles.forEach((projectile, index) => {
+            projectile.x += projectile.speed * Math.cos(projectile.angle);
+            projectile.y += projectile.speed * Math.sin(projectile.angle);
+
+            // 적과의 충돌 확인
+            enemies.forEach((enemy, enemyIndex) => {
+                if (projectile.x < enemy.x + enemy.width &&
+                    projectile.x + projectile.width > enemy.x &&
+                    projectile.y < enemy.y + enemy.height &&
+                    projectile.y + projectile.height > enemy.y) {
+                    // 충돌 시 투사체 제거 및 적의 hp 감소
+                    projectiles.splice(index, 1);
+                    enemy.hp -= 2;
+                    if (enemy.hp <= 0) {
+                        enemies.splice(enemyIndex, 1);
+                    }
+                }
+            });
+        });
     }
 
     let isPaused = false;
     let enemySpawnInterval;
+    let projectileSpawnInterval;
 
     // 키 입력 상태를 저장하는 객체
     const keys = {};
@@ -139,29 +241,53 @@ window.onload = function() {
         const pauseMenu = document.getElementById('pauseMenu');
         if (isPaused) {
             clearInterval(enemySpawnInterval); // 적 생성 일시정지
+            clearInterval(projectileSpawnInterval); // 투사체 생성 일시정지
             gameContainer.classList.add('paused');
             pauseMenu.classList.remove('hidden');
         } else {
             enemySpawnInterval = setInterval(spawnEnemy, 1000); // 적 생성 재개
+            projectileSpawnInterval = setInterval(spawnProjectile, 1000); // 투사체 생성 재개
             gameContainer.classList.remove('paused');
             pauseMenu.classList.add('hidden');
             gameLoop(); // 게임 루프 재개
         }
     }
 
-    // 초기화 버튼 클릭 이벤트
-    document.getElementById('resetButton').addEventListener('click', () => {
-        // 게임 상태 초기화
+    // 게임 오버 함수
+    function gameOver() {
+        isGameOver = true;
+        isPaused = true;
+        clearInterval(enemySpawnInterval);
+        clearInterval(projectileSpawnInterval);
+        document.getElementById('gameContainer').classList.add('paused');
+        document.getElementById('gameOverMenu').classList.remove('hidden');
+    }
+
+    // 게임 상태 초기화 함수
+    function resetGame() {
         player.x = 2500;
         player.y = 2500;
+        player.hp = 10; // 플레이어의 hp 초기화
+        player.maxHp = 10;
         enemies.length = 0;
+        projectiles.length = 0; // 투사체 배열 초기화
         isPaused = false;
+        isGameOver = false;
         document.getElementById('gameContainer').classList.remove('paused');
         document.getElementById('pauseMenu').classList.add('hidden');
+        document.getElementById('gameOverMenu').classList.add('hidden');
         clearInterval(enemySpawnInterval);
+        clearInterval(projectileSpawnInterval);
         enemySpawnInterval = setInterval(spawnEnemy, 1000);
+        projectileSpawnInterval = setInterval(spawnProjectile, 1000);
         gameLoop();
-    });
+    }
+
+    // 초기화 버튼 클릭 이벤트
+    document.getElementById('resetButton').addEventListener('click', resetGame);
+
+    // 다시하기 버튼 클릭 이벤트
+    document.getElementById('retryButton').addEventListener('click', resetGame);
 
     // 재개 버튼 클릭 이벤트
     document.getElementById('resumeButton').addEventListener('click', () => {
@@ -176,7 +302,7 @@ window.onload = function() {
 
     // 게임 루프 함수
     function gameLoop() {
-        if (isPaused) return; // 일시정지 상태에서는 업데이트 중지
+        if (isPaused || isGameOver) return; // 일시정지 또는 게임 오버 상태에서는 업데이트 중지
 
         // 캔버스를 지움
         ctx.clearRect(0, 0, viewport.width, viewport.height);
@@ -184,12 +310,14 @@ window.onload = function() {
         // 게임 상태 업데이트
         updatePlayer();
         updateEnemies();
+        updateProjectiles(); // 투사체 업데이트
         checkCollisions();
         updateCamera();
 
         // 게임 객체 그리기
         drawPlayer();
         drawEnemies();
+        drawProjectiles(); // 투사체 그리기
 
         // 다음 프레임 요청
         requestAnimationFrame(gameLoop);
@@ -198,6 +326,7 @@ window.onload = function() {
     // 게임 루프 시작
     gameLoop();
 
-    // 매 초마다 적 생성
+    // 매 초마다 적 생성 및 투사체 생성
     enemySpawnInterval = setInterval(spawnEnemy, 1000);
+    projectileSpawnInterval = setInterval(spawnProjectile, 1000);
 };
