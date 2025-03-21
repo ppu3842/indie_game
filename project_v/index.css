@@ -23,7 +23,7 @@ html, body {
     background-color: #333;
     width: 100vh;
     height: 100%;
-    /* aspect-ratio: 1 / 1; Ensure width is always equal to height */
+    aspect-ratio: 1 / 1; /*  Ensure width is always equal to height */
 }
 
 .player, .enemy {

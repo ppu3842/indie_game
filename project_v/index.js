@@ -19,7 +19,7 @@ window.onload = function() {
     const player = {
         x: 2500,
         y: 2500,
-        width: 50,
+        width: 30,
         height: 50,
         speed: 5,
         hp: 10, // 플레이어의 hp 속성 추가
@@ -164,7 +164,7 @@ window.onload = function() {
         }
 
         // 적 객체를 배열에 추가
-        enemies.push({ x, y, width: 50, height: 50, speed: 2, hp: 4, maxHp: 4 }); // 적의 hp 속성 추가
+        enemies.push({ x, y, width: 30, height: 50, speed: 2, hp: 4, maxHp: 4 }); // 적의 hp 속성 추가
     }
 
     // 투사체를 생성하는 함수
@@ -327,6 +327,6 @@ window.onload = function() {
     gameLoop();
 
     // 매 초마다 적 생성 및 투사체 생성
-    enemySpawnInterval = setInterval(spawnEnemy, 1000);
-    projectileSpawnInterval = setInterval(spawnProjectile, 1000);
+    enemySpawnInterval = setInterval(spawnEnemy, 500);
+    projectileSpawnInterval = setInterval(spawnProjectile, 500);
 };
